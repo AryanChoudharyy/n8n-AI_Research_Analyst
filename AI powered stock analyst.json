@@ -1,0 +1,815 @@
+{
+  "name": "AI powered stock analyst",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "132eabe6-0e73-4d56-b59a-4ed9c66374ce",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://www.alphavantage.co/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "function",
+              "value": "OVERVIEW"
+            },
+            {
+              "name": "symbol",
+              "value": "={{$json.ticker}}"
+            },
+            {
+              "name": "apikey",
+              "value": "8RY12SW8Y7NW3FN2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "2d29db8b-95fa-467e-955a-9955bc671799",
+      "name": "Financial Data Collector"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "62776d32-4b19-4981-9a7a-0bce2a380c6c",
+              "name": "=ticker",
+              "value": "={{$json.Symbol}}",
+              "type": "string"
+            },
+            {
+              "id": "06b59735-e84f-4855-93fe-33b7e3f1957e",
+              "name": "company_name",
+              "value": "={{$json.Name}}",
+              "type": "string"
+            },
+            {
+              "id": "24f29a82-aefa-4b44-8940-aade214abbc8",
+              "name": "sector",
+              "value": "={{$json.Sector}}",
+              "type": "string"
+            },
+            {
+              "id": "dd82e3e6-f60e-4bc2-ab68-08cf76663468",
+              "name": "market_cap",
+              "value": "={{$json.MarketCapitalization}}",
+              "type": "string"
+            },
+            {
+              "id": "0ab88569-268e-4723-ab9e-ac64bbaf924c",
+              "name": "pe_ratio",
+              "value": "={{$json.PERatio}}",
+              "type": "string"
+            },
+            {
+              "id": "798bbc5f-10a8-49e4-bdf9-968ac48f917c",
+              "name": "profit_margin",
+              "value": "={{$json.ProfitMargin}}",
+              "type": "string"
+            },
+            {
+              "id": "377c07ce-0c2b-40a2-afce-768dfc709014",
+              "name": "revenue_growth",
+              "value": "={{$json.QuarterlyRevenueGrowthYOY}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "4733a7dd-2073-4fa8-b183-a81cf8b39922",
+      "name": "Financial Metrics Extractor"
+    },
+    {
+      "parameters": {
+        "url": "https://newsapi.org/v2/everything",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{$json.ticker}}"
+            },
+            {
+              "name": "pageSize",
+              "value": "10"
+            },
+            {
+              "name": "sortBy",
+              "value": "publishedAt"
+            },
+            {
+              "name": "apiKey",
+              "value": "bbb4c8c7a11b49e29864c0ab32e7cdc9"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        0
+      ],
+      "id": "1996c8ba-b57b-47cf-9a49-c6ec0cf88309",
+      "name": "News Collector"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following stock news and provide:\n\n1. Overall sentiment (Positive, Neutral, Negative)\n2. Top positive themes\n3. Top negative themes\n4. A concise investor summary\n\nNews Articles:\n\n{{ JSON.stringify($json.articles) }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "e9f34dbd-0d08-4616-9493-a7867d244c9d",
+      "name": "Agent 1: News Analyst"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3-32b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        224
+      ],
+      "id": "d3e744e4-ef22-48f3-a4cb-23e8075798d8",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "YRA7WiJkcr6enn6F",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{\n`\nYou are a senior equity research risk analyst.\n\nCompany Data:\n\n${JSON.stringify($json)}\n\nAnalyze:\n\n1. Financial Risk\n2. Competitive Risk\n3. Regulatory Risk\n4. Market Risk\n\nUse:\n- PE Ratio\n- Profit Margin\n- Revenue Growth\n- Market Capitalization\n- News Sentiment\n\nAssign an overall risk score from 0-100.\n\nRules:\n- Use only provided information.\n- Do not invent metrics.\n- If information is missing, explicitly mention it.\n\nOutput:\n\nRisk Score:\nTop Risks:\nRisk Summary:\n`\n}}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1648,
+        0
+      ],
+      "id": "be468571-1b55-4523-a1c7-1e97f1bb3c3a",
+      "name": "Agent 2: Risk Analyst"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3-32b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        208
+      ],
+      "id": "fd866374-d1f4-4fef-b856-e6d1dd49162c",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "YRA7WiJkcr6enn6F",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1696,
+        -416
+      ],
+      "id": "0f653d87-2293-462d-b2af-7ed3b398895e",
+      "name": "Merge Financial + News"
+    },
+    {
+      "parameters": {
+        "jsCode": "const riskText = $json.output || \"\";\n\nlet recommendation = \"WATCHLIST\";\n\n// Match \"Risk Score:\" followed by anything and then a number\nconst scoreMatch = riskText.match(/Risk Score[\\s\\S]*?(\\d{1,3})/i);\n\nlet riskScore = 50;\n\nif (scoreMatch) {\n  riskScore = parseInt(scoreMatch[1], 10);\n}\n\nif (riskScore <= 35) {\n  recommendation = \"BUY\";\n} else if (riskScore <= 60) {\n  recommendation = \"WATCHLIST\";\n} else {\n  recommendation = \"AVOID\";\n}\n\nreturn [{\n  recommendation,\n  riskScore,\n  riskAnalysis: riskText\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        0
+      ],
+      "id": "42dbb5d2-6af7-48b9-8b8e-5fe7b3550bca",
+      "name": "Decision Engine"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.recommendation}}",
+                    "rightValue": "BUY",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "fe4b1cc7-a809-4c74-9bc4-33e4b26b104f"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "9db76ff7-675d-45ab-b38c-0b920aacd466",
+                    "leftValue": "={{$json.recommendation}}",
+                    "rightValue": "WATCHLIST",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e4519025-03fa-4ac6-9d0c-47c190361ee0",
+                    "leftValue": "={{$json.recommendation}}",
+                    "rightValue": "AVOID",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2208,
+        0
+      ],
+      "id": "86601c2b-7e94-4ce9-bb03-6292c55c97f2",
+      "name": "Recommendation Router"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{\n`\nYou are a senior equity research analyst.\n\nCreate a professional WATCHLIST investment memo.\n\nRecommendation: ${$json.recommendation}\n\nRisk Score: ${$json.riskScore}\n\nRisk Analysis:\n\n${$json.riskAnalysis}\n\nStructure:\n\n1. Executive Summary\n\n2. Key Strengths\n\n3. Key Concerns\n\n4. Future Catalysts To Monitor\n\n5. Final Recommendation\n\nWrite in a professional investment-research style.\n`\n}}\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2416,
+        0
+      ],
+      "id": "2d2c375f-061a-4080-b6b8-2fec027e867c",
+      "name": "WATCHLIST Memo Generator"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3-32b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2512,
+        240
+      ],
+      "id": "374a4790-f732-497c-8543-d83048d9f45c",
+      "name": "OpenRouter Chat Model2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "YRA7WiJkcr6enn6F",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3-32b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2416,
+        -176
+      ],
+      "id": "51c4a50c-1828-410d-9254-29822ae193be",
+      "name": "OpenRouter Chat Model3",
+      "credentials": {
+        "openRouterApi": {
+          "id": "YRA7WiJkcr6enn6F",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{\n`\nYou are a senior equity research analyst.\n\nIMPORTANT RULES:\n\n* Use ONLY information provided below.\n* Do NOT use prior knowledge.\n* Do NOT invent financial metrics.\n* Do NOT invent valuation numbers.\n* Do NOT invent revenue figures.\n* Do NOT invent cash flow figures.\n* Do NOT invent customer counts.\n* Do NOT invent market share statistics.\n* Do NOT invent balance sheet data.\n\nIf information is unavailable, write:\n\n\"Data not available from current analysis.\"\n\nINPUT DATA:\n\nRecommendation:\n${$json.recommendation}\n\nRisk Score:\n${$json.riskScore}\n\nRisk Analysis:\n${$json.riskAnalysis}\n\nCreate a professional AVOID investment memo.\n\nStructure:\n\n1. Executive Summary\n\n2. Major Concerns\n\n3. Downside Risks\n\n4. Why Investors Should Avoid\n\n5. Final Recommendation\n\nKeep the tone professional and evidence-based.\n\nBase everything strictly on the supplied data.\n`\n}}\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2560,
+        384
+      ],
+      "id": "81851c74-dd90-4a47-a201-4f5b78c07445",
+      "name": "AVOID MEMO GENERATOR"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3-32b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2480,
+        560
+      ],
+      "id": "f110f5bf-be6a-414c-8db6-81377f3846fd",
+      "name": "OpenRouter Chat Model4",
+      "credentials": {
+        "openRouterApi": {
+          "id": "YRA7WiJkcr6enn6F",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{\n`\nYou are a senior equity research analyst.\n\nIMPORTANT RULES:\n\n- Use ONLY information provided below.\n- Do NOT use prior knowledge.\n- Do NOT invent financial metrics.\n- Do NOT invent valuation numbers.\n- Do NOT invent revenue figures.\n- Do NOT invent cash flow figures.\n- Do NOT invent market share statistics.\n\nIf information is unavailable, write:\n\"Data not available from current analysis.\"\n\nINPUT DATA:\n\nRecommendation:\n${$json.recommendation}\n\nRisk Score:\n${$json.riskScore}\n\nRisk Analysis:\n${$json.riskAnalysis}\n\nCreate a BUY investment memo with:\n\n1. Executive Summary\n2. Investment Thesis\n3. Key Strengths\n4. Risks To Monitor\n5. Final Recommendation\n\nBase everything strictly on the supplied data.\n`\n}}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2416,
+        -336
+      ],
+      "id": "597a2d28-f32f-40c1-929a-dc6f6c17776f",
+      "name": "BUY MEMO GENERATOR"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2992,
+        -48
+      ],
+      "id": "9d8d54d2-7b80-4807-81d6-573201349158",
+      "name": "Merge Final Report"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bd14fd16-6367-4252-b852-06262470b992",
+              "name": "report",
+              "value": "={{$json.output}}",
+              "type": "string"
+            },
+            {
+              "id": "805d2e3b-96ed-47bb-8169-b763bef7547b",
+              "name": "generated_at",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "cdad92a1-d072-46f0-9103-e9ad8a656424",
+              "name": "recommendation",
+              "value": "={{$node[\"Decision Engine\"].json[\"recommendation\"]}}",
+              "type": "string"
+            },
+            {
+              "id": "ea21a217-6676-4f04-9628-6feda2fc8f77",
+              "name": "risk_score",
+              "value": "={{$node[\"Decision Engine\"].json[\"riskScore\"]}}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3200,
+        -48
+      ],
+      "id": "d161cd30-5632-4001-a78f-94de884a0665",
+      "name": "Final Report Formatter"
+    },
+    {
+      "parameters": {
+        "sendTo": "aryan.23bcs10080@sst.scaler.com",
+        "subject": "=Stock Research Report | {{$json.recommendation}} | Risk {{$json.risk_score}}",
+        "message": "={{$json.html}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3856,
+        160
+      ],
+      "id": "0d051756-952c-41fa-b18a-3d71cc9771b7",
+      "name": "Send a message",
+      "webhookId": "66c9f11a-e69d-4b63-ae4c-ad9d2d7d2f58",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jbAWIu0h33kq6Wzr",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const recommendation = $json.recommendation || \"N/A\";\nconst riskScore = $json.risk_score || \"N/A\";\nconst generatedAt = $json.generated_at || \"\";\nlet report = $json.report || \"\";\n\n// Convert markdown headings\nreport = report.replace(/^### (.*$)/gm, '<h2>$1</h2>');\nreport = report.replace(/^## (.*$)/gm, '<h2>$1</h2>');\nreport = report.replace(/^# (.*$)/gm, '<h1>$1</h1>');\n\n// Convert bold text\nreport = report.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');\n\n// Convert horizontal rules\nreport = report.replace(/^---$/gm, '<hr>');\n\n// Convert bullet points\nreport = report.replace(/^- (.*)$/gm, '<li>$1</li>');\n\n// Wrap consecutive li tags\nreport = report.replace(/(<li>.*<\\/li>)/gs, '<ul>$1</ul>');\n\n// Convert line breaks\nreport = report.replace(/\\n/g, '<br>');\n\nconst html = `\n<html>\n<body style=\"font-family: Arial, sans-serif; max-width: 900px; margin:auto; padding:20px;\">\n\n<div style=\"background:#1e293b;color:white;padding:20px;border-radius:10px;\">\n<h1>AI Stock Research Report</h1>\n<p><strong>Recommendation:</strong> ${recommendation}</p>\n<p><strong>Risk Score:</strong> ${riskScore}</p>\n<p><strong>Generated:</strong> ${generatedAt}</p>\n</div>\n\n<div style=\"padding:20px;background:#ffffff;border:1px solid #ddd;margin-top:20px;border-radius:10px;\">\n${report}\n</div>\n\n<div style=\"margin-top:20px;color:gray;font-size:12px;\">\nGenerated automatically using n8n Stock Research Analyst\n</div>\n\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    html,\n    recommendation,\n    risk_score: riskScore,\n    generated_at: generatedAt\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3488,
+        -48
+      ],
+      "id": "07c5db09-c73d-43a9-a06b-03ef14058c5e",
+      "name": "HTML Report Builder"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bdc2e980-63f1-4735-9bb1-984fc800eac2",
+              "name": "ticker",
+              "value": "TSLA",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "62774cf6-dcc1-437a-af75-8dc79c81b053",
+      "name": "Stock Input"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Stock Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Financial Data Collector": {
+      "main": [
+        [
+          {
+            "node": "Financial Metrics Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Financial Metrics Extractor": {
+      "main": [
+        [
+          {
+            "node": "News Collector",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Financial + News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "News Collector": {
+      "main": [
+        [
+          {
+            "node": "Agent 1: News Analyst",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent 1: News Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 1: News Analyst": {
+      "main": [
+        [
+          {
+            "node": "Merge Financial + News",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent 2: Risk Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 2: Risk Analyst": {
+      "main": [
+        [
+          {
+            "node": "Decision Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Financial + News": {
+      "main": [
+        [
+          {
+            "node": "Agent 2: Risk Analyst",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Engine": {
+      "main": [
+        [
+          {
+            "node": "Recommendation Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recommendation Router": {
+      "main": [
+        [
+          {
+            "node": "BUY MEMO GENERATOR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WATCHLIST Memo Generator",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AVOID MEMO GENERATOR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "WATCHLIST Memo Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "BUY MEMO GENERATOR",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AVOID MEMO GENERATOR",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WATCHLIST Memo Generator": {
+      "main": [
+        [
+          {
+            "node": "Merge Final Report",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "BUY MEMO GENERATOR": {
+      "main": [
+        [
+          {
+            "node": "Merge Final Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AVOID MEMO GENERATOR": {
+      "main": [
+        [
+          {
+            "node": "Merge Final Report",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge Final Report": {
+      "main": [
+        [
+          {
+            "node": "Final Report Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Report Formatter": {
+      "main": [
+        [
+          {
+            "node": "HTML Report Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "HTML Report Builder": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stock Input": {
+      "main": [
+        [
+          {
+            "node": "Financial Data Collector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "11b55e81-7bd6-49a3-b003-9c496a124975",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d0105b7fb8b653852d9bf5690b6daba1595998882de090c34a7fa0d6b5645d35"
+  },
+  "nodeGroups": [],
+  "id": "clfffU8tk3g6IZ0s",
+  "tags": []
+}
